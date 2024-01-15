@@ -11,6 +11,9 @@ pipeline {
             steps {
                 script {
                     app = docker.build("shanemannion/react-app")
+                    app.inside {
+                        sh 'echo $(curl localhost:8080)'
+                    }
                 }
             }
         }
