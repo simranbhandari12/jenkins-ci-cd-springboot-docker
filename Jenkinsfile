@@ -10,7 +10,7 @@ pipeline {
         stage('Build Docker Image') {
             steps {
                 script {
-                    app = docker.build("shanemannion/react-app")
+                    app = docker.build("shanemannion/spring-boot-app")
                     app.inside {
                         sh 'echo $(curl localhost:8080)'
                     }
