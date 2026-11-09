@@ -1,39 +1,59 @@
 pipeline {
     agent any
 
+    tools {
+        maven 'maven'
+    }
+
+    environment {
+        GITHUB_REPO = 'https://github.com/simranbhandari12/jenkins-ci-cd-springboot-docker.git'
+        GIT_BRANCH = 'main'
+        DOCKERHUB_REPO = 'sbhandari2001/jenkins-ci-cd-springboot-docker'
+        DOCKERHUB_CREDENTIALS = 'dockerhub_login'
+    }
+
     stages {
-        stage('build') {
+        stage('Checkout from GitHub') {
+            steps {
+                git branch: "${GIT_BRANCH}", url: "${GITHUB_REPO}"
+            }
+        }
+
+        stage('Build Java App') {
             steps {
                 sh 'mvn clean install'
             }
         }
+
         stage('Build Docker Image') {
             steps {
-                script {
-                    app = docker.build("shanemannion/spring-boot-app")
-                    app.inside {
-                        sh 'echo $(curl localhost:8080)'
-                    }
-                }
+                sh '''
+                    docker build -t ${DOCKERHUB_REPO}:${BUILD_NUMBER} .
+                    docker tag ${DOCKERHUB_REPO}:${BUILD_NUMBER} ${DOCKERHUB_REPO}:latest
+                '''
             }
         }
-        stage('Push Docker Image') {
+
+        stage('Push Docker Image to Private Docker Hub Repo') {
             steps {
-                script {
-                    docker.withRegistry('https://registry.hub.docker.com', 'dockerhub_login') {
-                        app.push("${env.BUILD_NUMBER}")
-                        app.push("latest")
-                    }
+                withCredentials([usernamePassword(credentialsId: "${DOCKERHUB_CREDENTIALS}", usernameVariable: 'DOCKER_USER', passwordVariable: 'DOCKER_PASS')]) {
+                    sh '''
+                        echo "$DOCKER_PASS" | docker login -u "$DOCKER_USER" --password-stdin
+                        docker push ${DOCKERHUB_REPO}:${BUILD_NUMBER}
+                        docker push ${DOCKERHUB_REPO}:latest
+                        docker logout
+                    '''
                 }
             }
         }
     }
+
     post {
         success {
-            echo 'Job completed successfully'
+            echo 'Pipeline completed successfully.'
         }
         failure {
-            echo 'Job failed'
+            echo 'Pipeline failed.'
         }
     }
 }
